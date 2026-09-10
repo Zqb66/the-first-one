@@ -1,0 +1,159 @@
+import random
+import tkinter as tk
+
+
+CELL_SIZE = 24
+GRID_WIDTH = 25
+GRID_HEIGHT = 20
+GAME_SPEED = 110
+
+
+class SnakeGame:
+	def __init__(self, root):
+		self.root = root
+		self.root.title("贪吃蛇")
+		self.root.resizable(False, False)
+		self.root.configure(bg="#18212b")
+
+		self.score_label = tk.Label(
+			root,
+			text="得分：0",
+			font=("Microsoft YaHei UI", 14, "bold"),
+			fg="#f4f7fb",
+			bg="#18212b",
+			pady=8,
+		)
+		self.score_label.pack(fill=tk.X)
+
+		self.canvas = tk.Canvas(
+			root,
+			width=GRID_WIDTH * CELL_SIZE,
+			height=GRID_HEIGHT * CELL_SIZE,
+			bg="#101820",
+			highlightthickness=0,
+		)
+		self.canvas.pack(padx=12, pady=(0, 12))
+
+		self.root.bind("<KeyPress>", self.change_direction)
+		self.restart()
+
+	def restart(self):
+		self.snake = [(8, 10), (7, 10), (6, 10)]
+		self.direction = (1, 0)
+		self.next_direction = self.direction
+		self.score = 0
+		self.game_over = False
+		self.food = self.create_food()
+		self.score_label.config(text="得分：0")
+		self.draw()
+		self.tick()
+
+	def create_food(self):
+		available = [
+			(x, y)
+			for x in range(GRID_WIDTH)
+			for y in range(GRID_HEIGHT)
+			if (x, y) not in self.snake
+		]
+		return random.choice(available)
+
+	def change_direction(self, event):
+		key = event.keysym.lower()
+		directions = {
+			"up": (0, -1),
+			"w": (0, -1),
+			"down": (0, 1),
+			"s": (0, 1),
+			"left": (-1, 0),
+			"a": (-1, 0),
+			"right": (1, 0),
+			"d": (1, 0),
+		}
+		if key == "r" and self.game_over:
+			self.restart()
+			return
+
+		new_direction = directions.get(key)
+		if new_direction and new_direction != (-self.direction[0], -self.direction[1]):
+			self.next_direction = new_direction
+
+	def tick(self):
+		if self.game_over:
+			return
+
+		self.direction = self.next_direction
+		head_x, head_y = self.snake[0]
+		direction_x, direction_y = self.direction
+		new_head = (head_x + direction_x, head_y + direction_y)
+
+		hit_wall = not (0 <= new_head[0] < GRID_WIDTH and 0 <= new_head[1] < GRID_HEIGHT)
+		eating = new_head == self.food
+		hit_body = new_head in (self.snake if eating else self.snake[:-1])
+		if hit_wall or hit_body:
+			self.game_over = True
+			self.draw()
+			return
+
+		self.snake.insert(0, new_head)
+		if eating:
+			self.score += 1
+			self.score_label.config(text=f"得分：{self.score}")
+			self.food = self.create_food()
+		else:
+			self.snake.pop()
+
+		self.draw()
+		self.root.after(GAME_SPEED, self.tick)
+
+	def draw(self):
+		self.canvas.delete("all")
+
+		for x in range(0, GRID_WIDTH * CELL_SIZE, CELL_SIZE):
+			self.canvas.create_line(x, 0, x, GRID_HEIGHT * CELL_SIZE, fill="#17232d")
+		for y in range(0, GRID_HEIGHT * CELL_SIZE, CELL_SIZE):
+			self.canvas.create_line(0, y, GRID_WIDTH * CELL_SIZE, y, fill="#17232d")
+
+		self.draw_cell(self.food, "#ffca3a", 4)
+		for index, cell in enumerate(self.snake):
+			self.draw_cell(cell, "#7bdff2" if index == 0 else "#36b7a4", 3)
+
+		if self.game_over:
+			center_x = GRID_WIDTH * CELL_SIZE // 2
+			center_y = GRID_HEIGHT * CELL_SIZE // 2
+			self.canvas.create_rectangle(
+				center_x - 145,
+				center_y - 52,
+				center_x + 145,
+				center_y + 52,
+				fill="#18212b",
+				outline="#ffca3a",
+				width=2,
+			)
+			self.canvas.create_text(
+				center_x,
+				center_y - 15,
+				text="游戏结束",
+				fill="#ffffff",
+				font=("Microsoft YaHei UI", 20, "bold"),
+			)
+			self.canvas.create_text(
+				center_x,
+				center_y + 20,
+				text="按 R 重新开始",
+				fill="#b8c7d3",
+				font=("Microsoft YaHei UI", 11),
+			)
+
+	def draw_cell(self, cell, color, padding):
+		x, y = cell
+		left = x * CELL_SIZE + padding
+		top = y * CELL_SIZE + padding
+		right = (x + 1) * CELL_SIZE - padding
+		bottom = (y + 1) * CELL_SIZE - padding
+		self.canvas.create_rectangle(left, top, right, bottom, fill=color, outline="")
+
+
+if __name__ == "__main__":
+	window = tk.Tk()
+	SnakeGame(window)
+	window.mainloop()
